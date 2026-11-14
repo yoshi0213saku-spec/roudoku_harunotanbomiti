@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>ふるさと朗読帖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* 縦一列の「帖」：目次カード → 本文ページ、下に固定の再生バー */
+:root{
+  --bg:#eef0ea; --paper:#f8f9f5; --ink:#1f2a33; --sub:#5b6770; --line:#d3d8cf;
+  --ai:#24476b; --ai-soft:#dce5ee; --moss:#5d7444; --warn:#9a3b2c;
+  --mincho:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
+  --gothic:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141a1f; --paper:#1c242b; --ink:#e4e8e2; --sub:#9aa6ad; --line:#2e3a43;
+  --ai:#8fb3d9; --ai-soft:#25364a; --moss:#9fbb7f; --warn:#e08a78; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a1f; --paper:#1c242b; --ink:#e4e8e2; --sub:#9aa6ad; --line:#2e3a43;
+  --ai:#8fb3d9; --ai-soft:#25364a; --moss:#9fbb7f; --warn:#e08a78; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--gothic);font-size:16px;line-height:1.7;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0 140px}
+.wrap{max-width:640px;margin:0 auto}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,label:focus-within{outline:3px solid var(--ai);outline-offset:2px}
+
+header.top{padding-block:16px 18px;display:grid;gap:10px}
+.cover{position:relative;margin:0 0 6px;border-radius:14px;overflow:hidden;max-width:100%;aspect-ratio:400/480;max-height:78vh;background:#22385a}
+.cover svg{display:block;width:100%;height:100%}
+.cover-title{position:absolute;top:7%;right:9%;margin:0;writing-mode:vertical-rl;font-family:var(--mincho);font-weight:700;font-size:clamp(34px,10vw,50px);letter-spacing:.18em;line-height:1;color:#fbf6ec;text-shadow:0 2px 12px rgba(20,30,50,.55)}
+.cover-sub{position:absolute;top:8%;right:calc(9% + clamp(34px,10vw,50px) + 14px);writing-mode:vertical-rl;font-size:13px;letter-spacing:.3em;color:#f2e6d2;text-shadow:0 1px 6px rgba(20,30,50,.6)}
+.cover-author{position:absolute;left:5%;bottom:4.5%;font-family:var(--mincho);font-size:clamp(15px,4.2vw,19px);letter-spacing:.2em;color:#fbf6ec;text-shadow:0 1px 8px rgba(10,20,20,.8)}
+.eyebrow{font-size:12px;letter-spacing:.2em;color:var(--moss);font-weight:700}
+h1{font-family:var(--mincho);font-size:32px;line-height:1.3;margin:0;text-wrap:balance}
+.lead{color:var(--sub);margin:0;font-size:15px}
+.stats{font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums}
+
+.list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.item{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;
+  background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 14px}
+.item .no{font-family:var(--mincho);font-size:22px;color:var(--ai);text-align:center;font-variant-numeric:tabular-nums}
+.item .t{font-family:var(--mincho);font-size:19px;font-weight:700;line-height:1.35;min-width:0}
+.item .meta{font-size:12.5px;color:var(--sub);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px}
+.chip{font-size:11.5px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);white-space:nowrap}
+.chip.on{background:var(--ai-soft);border-color:transparent;color:var(--ai);font-weight:700}
+.item.playing{border-color:var(--ai);box-shadow:inset 4px 0 0 var(--ai)}
+
+/* 本文 */
+.end-nav{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;margin:8px 0 24px;padding-top:18px;border-top:1px solid var(--line)}
+.end-nav .btn{flex:1 1 auto;justify-content:center}
+/* 本文ページの絵：最初は表紙と同じ大きさ、読み進めると上に小さく残る */
+.d-cover{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;border-radius:14px;overflow:hidden;background:var(--bg);box-shadow:0 6px 14px -10px rgba(0,0,0,.45)}
+.d-cover svg{display:block;width:100%;height:100%}
+
+.back{background:none;border:0;padding:16px 0 4px;color:var(--ai);font-weight:700;display:inline-flex;gap:6px;align-items:center}
+.reading{padding-block:8px 24px}
+.reading .season{font-size:13px;color:var(--moss);letter-spacing:.15em;font-weight:700}
+.reading h2{font-family:var(--mincho);font-size:30px;line-height:1.35;margin:4px 0 6px;text-wrap:balance}
+.reading .len{font-size:13px;color:var(--sub)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 8px}
+.btn{border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:10px 14px;font-weight:700;font-size:15px;display:inline-flex;gap:8px;align-items:center;min-height:46px}
+.btn.primary{background:var(--ai);color:var(--paper);border-color:var(--ai)}
+.btn.danger{color:var(--warn)}
+.btn[disabled]{opacity:.45;cursor:default}
+.note{font-size:13px;color:var(--sub);margin:4px 0 0}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px;margin-top:8px}
+.body{font-family:var(--mincho);font-size:var(--fs,19px);line-height:2.05;margin-top:22px;max-width:34em}
+.body p{margin:0 0 1.1em;text-indent:1em}
+.sizer{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--sub);margin-top:14px}
+.sizer button{border:1px solid var(--line);background:var(--paper);border-radius:8px;width:40px;height:36px;font-weight:700}
+
+/* 再生バー */
+.player{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--paper);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.player .in{max-width:640px;margin:0 auto;display:grid;gap:6px}
+.p-title{font-family:var(--mincho);font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.p-row{display:flex;align-items:center;gap:8px}
+.p-row input[type=range]{flex:1;min-width:0;accent-color:var(--ai);height:28px}
+.time{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+.ctrl{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.ic{background:none;border:0;width:40px;height:44px;padding:0;border-radius:50%;display:grid;place-items:center}
+.ic svg{width:24px;height:24px;fill:currentColor}
+.ic.big{width:56px;height:56px;background:var(--ai);color:var(--paper)}
+.ic.big svg{width:28px;height:28px}
+.rate{border:1px solid var(--line);background:none;border-radius:8px;padding:6px 6px;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:52px}
+.p-head{display:flex;align-items:center;gap:8px}
+.p-head .p-title{flex:1;min-width:0}
+.sleep{flex:none}
+.rate[aria-pressed="true"]{background:var(--ai-soft);color:var(--ai);border-color:transparent}
+.p-empty{font-size:13px;color:var(--sub)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:30;max-width:calc(100% - 32px)}
+@media (prefers-reduced-motion:no-preference){.item{transition:border-color .2s}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <section id="home">
+    <header class="top">
+      <figure class="cover">
+        <svg viewBox="0 0 400 480" role="img" aria-label="夕暮れの山あいの村。棚田とわらぶき屋根の家、柿の木、川">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22385a"/><stop offset=".45" stop-color="#6f88a6"/><stop offset=".78" stop-color="#e9b98d"/><stop offset="1" stop-color="#f4d6ad"/></linearGradient>
+            <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6e7d2" stop-opacity="0"/><stop offset=".5" stop-color="#f6e7d2" stop-opacity=".55"/><stop offset="1" stop-color="#f6e7d2" stop-opacity="0"/></linearGradient>
+            <radialGradient id="glow"><stop offset="0" stop-color="#ffe9b8" stop-opacity=".9"/><stop offset="1" stop-color="#ffe9b8" stop-opacity="0"/></radialGradient>
+          </defs>
+          <rect width="400" height="480" fill="url(#sky)"/>
+          <g fill="#f7efe0"><circle cx="60" cy="52" r="1.2"/><circle cx="130" cy="30" r="1"/><circle cx="210" cy="62" r="1.3"/><circle cx="100" cy="96" r=".9"/><circle cx="250" cy="24" r="1"/></g>
+          <circle cx="96" cy="128" r="40" fill="url(#glow)"/>
+          <circle cx="96" cy="128" r="17" fill="#fbefd2"/>
+          <path d="M0 262 L48 214 L86 236 L140 182 L196 228 L238 200 L290 240 L340 196 L400 232 L400 300 L0 300Z" fill="#7b8ea3"/>
+          <rect y="240" width="400" height="60" fill="url(#mist)"/>
+          <path d="M0 300 Q60 248 120 268 T236 258 Q300 236 400 270 L400 340 L0 340Z" fill="#4f6a5e"/>
+          <g fill="none" stroke="#1f2a33" stroke-width="1.4" stroke-linecap="round"><path d="M250 150 q5 -5 10 0 q5 -5 10 0"/><path d="M278 168 q4 -4 8 0 q4 -4 8 0"/><path d="M232 176 q3 -3 6 0 q3 -3 6 0"/></g>
+          <path d="M0 336 Q110 300 220 320 T400 316 L400 480 L0 480Z" fill="#34503f"/>
+          <g fill="#c7a245"><path d="M168 330 Q260 312 400 326 L400 336 Q262 324 170 340Z"/><path d="M150 350 Q262 330 400 346 L400 357 Q262 343 154 361Z"/><path d="M140 372 Q262 352 400 368 L400 380 Q262 366 146 384Z"/><path d="M136 396 Q262 376 400 392 L400 405 Q262 391 142 409Z"/></g>
+          <g fill="#e2c66e" opacity=".55"><path d="M200 334 Q290 322 400 330 L400 332 Q290 325 202 337Z"/><path d="M190 355 Q290 341 400 350 L400 352 Q290 344 192 358Z"/></g>
+          <path d="M0 430 Q70 404 130 418 Q200 436 260 470 L250 480 L0 480Z" fill="#8fb0c2"/>
+          <path d="M0 440 Q70 416 126 428" stroke="#c9dbe3" stroke-width="1.5" fill="none" opacity=".8"/>
+          <path d="M20 456 Q80 434 140 446" stroke="#c9dbe3" stroke-width="1.2" fill="none" opacity=".6"/>
+          <g transform="translate(52 340)">
+            <rect x="6" y="40" width="74" height="34" fill="#e4d6bb"/>
+            <rect x="6" y="40" width="74" height="4" fill="#5a4630"/>
+            <rect x="18" y="50" width="14" height="14" fill="#f5c46a"/><rect x="52" y="50" width="18" height="24" fill="#4a3a28"/>
+            <path d="M-6 44 L22 4 L64 4 L92 44Z" fill="#7a5b38"/>
+            <path d="M22 4 L64 4 L58 14 L28 14Z" fill="#5e452a"/>
+            <path d="M2 38 L90 38" stroke="#9a774c" stroke-width="1.4"/><path d="M8 30 L84 30" stroke="#9a774c" stroke-width="1"/>
+            <path d="M60 4 L60 -6 L66 -6 L66 4Z" fill="#5e452a"/>
+            <circle cx="25" cy="57" r="22" fill="url(#glow)" opacity=".35"/>
+          </g>
+          <g transform="translate(10 300)">
+            <path d="M28 110 L30 60 Q22 46 12 42 M30 64 Q40 48 52 44" stroke="#2a2219" stroke-width="4" fill="none" stroke-linecap="round"/>
+            <g fill="#2c4a32"><circle cx="30" cy="34" r="22"/><circle cx="12" cy="44" r="14"/><circle cx="50" cy="42" r="15"/></g>
+            <g fill="#e8772e"><circle cx="20" cy="30" r="3.2"/><circle cx="38" cy="24" r="3.2"/><circle cx="44" cy="44" r="3.2"/><circle cx="10" cy="46" r="3"/><circle cx="30" cy="46" r="3.2"/><circle cx="56" cy="36" r="3"/><circle cx="28" cy="14" r="3"/></g>
+          </g>
+          <path d="M300 160 L300 150" stroke="none"/>
+        </svg>
+        <h1 class="cover-title">ふるさと朗読帖</h1>
+        <div class="cover-sub">朗読集　全十篇</div>
+        <figcaption class="cover-author">作　中島義健</figcaption>
+      </figure>
+      <p class="lead">山あいの村の四季を描いた、それぞれ三分ほどの朗読です。まず「はじめに」で十篇を紹介します。題名をタップすると本文が開きます。</p>
+      <div class="stats" id="stats"></div>
+    </header>
+    <ul class="list" id="list"></ul>
+  </section>
+
+  <section id="detail" hidden>
+    <button class="back" id="back" type="button">‹ 目次にもどる</button>
+    <div class="d-cover" id="d-cover"></div>
+    <article class="reading">
+      <div class="season" id="d-season"></div>
+      <h2 id="d-title"></h2>
+      <div class="len" id="d-len"></div>
+      <div class="actions">
+        <button class="btn primary" id="d-play" type="button"></button>
+        <label class="btn" id="d-pick-wrap"><input id="d-pick" type="file" accept="audio/*,.mp3" hidden><span id="d-pick-label">MP3を入れる</span></label>
+        <button class="btn" id="d-tts" type="button" hidden>試し読み（合成音声）</button>
+        <button class="btn danger" id="d-del" type="button" hidden>音声を外す</button>
+      </div>
+      <div class="confirm" id="d-confirm" hidden>この端末から音声を外しますか？
+        <button class="btn danger" id="d-del-yes" type="button">外す</button>
+        <button class="btn" id="d-del-no" type="button">やめる</button></div>
+      <p class="note" id="d-note"></p>
+      <div class="sizer">文字の大きさ
+        <button type="button" id="fs-down" aria-label="文字を小さく">小</button>
+        <button type="button" id="fs-up" aria-label="文字を大きく">大</button></div>
+      <div class="body" id="d-body"></div>
+      <div class="end-nav">
+        <button class="btn" id="back2" type="button">‹ 目次にもどる</button>
+        <button class="btn" id="next2" type="button" hidden></button>
+      </div>
+    </article>
+  </section>
+</div>
+
+<div class="player" id="player">
+  <div class="in">
+    <div class="p-head">
+      <div class="p-title" id="p-title">再生する朗読を選んでください</div>
+      <button class="rate sleep" id="sleep" type="button" aria-label="おやすみタイマー">☾ タイマー</button>
+    </div>
+    <div class="p-row">
+      <input type="range" id="seek" min="0" max="100" value="0" step="0.1" aria-label="再生位置">
+      <span class="time" id="time">0:00 / 0:00</span>
+    </div>
+    <div class="ctrl">
+      <button class="rate" id="rate" type="button" aria-label="再生速度">1.0倍</button>
+      <button class="ic" id="prev" type="button" aria-label="前の朗読"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+      <button class="ic" id="rew" type="button" aria-label="15秒もどる"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/></svg></button>
+      <button class="ic big" id="pp" type="button" aria-label="再生"><svg viewBox="0 0 24 24" id="pp-ic"><path d="M8 5v14l11-7z"/></svg></button>
+      <button class="ic" id="fwd" type="button" aria-label="15秒すすむ"><svg viewBox="0 0 24 24"><path d="M12 5V2l5 4-5 4V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/></svg></button>
+      <button class="ic" id="next" type="button" aria-label="次の朗読"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+      <button class="rate" id="cont" type="button" aria-label="続けて再生">連続</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<audio id="audio" preload="metadata"></audio>
+
+<script>
+const WORKS=[
+{id:"r00",title:"はじめに",season:"この朗読帖について",intro:true,text:[
+"これから、「ふるさと朗読帖」をお届けします。",
+"ここに集めたのは、山あいの小さな村の、四季の物語です。春の雪どけから、夏の祭り、秋の稲刈り、そして冬の囲炉裏ばたまで。どこかで見たことのあるような、なつかしい景色ばかりです。",
+"物語に出てくるのは、祖父や祖母、父や母、きょうだいや幼なじみ。特別な事件は、何も起こりません。けれど、その何気ない一日一日が、今思えば、かけがえのない宝物でした。",
+"第一篇「春の田んぼ道」。雪どけの田んぼで、土を起こす祖父の後ろ姿。",
+"第二篇「れんげ畑の約束」。町へ引っ越していく幼なじみと交わした、小さな指切り。",
+"第三篇「蛍の夜」。父に連れられて見た、沢のほとりの蛍の光。",
+"第四篇「夏祭りの太鼓」。やぐらの上で太鼓をたたく、兄の汗の光る背中。",
+"第五篇「稲刈りの日」。家族総出の稲刈りと、塩だけのおむすび。",
+"第六篇「峠のお地蔵さま」。村を出る朝、母と二人で手を合わせた、峠のお地蔵さま。",
+"第七篇「柿の木のある家」。父と同い年の柿の木と、軒下にならんだ干し柿。",
+"第八篇「初雪の朝」。一夜でまっ白になった庭に、弟と二人でつけた足あと。",
+"第九篇「囲炉裏ばたの昔話」。炎のゆらめきと、祖父のしわがれた声。",
+"第十篇「小さな駅で」。ふるさとを旅立った春の駅と、母が持たせてくれたおむすび。",
+"どうぞ目を閉じて、あなたのふるさとを思いうかべながら、お聞きください。"]},
+{id:"r01",title:"春の田んぼ道",season:"春",text:[
+"雪どけの水が、用水路を音を立てて流れていく。あぜ道には、まだ固い土のあいだから、つくしが小さな頭をのぞかせていた。日なたの土手では、ふきのとうが、うす緑の顔をいくつも並べている。",
+"祖父は朝早くから田に出て、くわで土を起こしていた。ひと振りごとに、黒い土がやわらかく割れ、冬のあいだ眠っていた匂いが立ちのぼる。わたしはその後ろを、長靴をぬかるみに取られながらついて歩いた。",
+"「土が目をさましたな」と祖父は言った。わたしには土が眠るということがよくわからなかったけれど、足の裏から伝わってくるぬくもりは、たしかに生きもののようだった。",
+"休みのあいだ、祖父はあぜに腰をおろし、腰の手ぬぐいで額の汗をふいた。わたしも隣にすわって、水筒のぬるいお茶を分けてもらった。遠くの林で、うぐいすが下手な声で鳴いている。「あいつも、まだ練習中だ」と祖父が笑った。",
+"そのとき、用水路の水のなかで、何かがすいと動いた。目をこらすと、小さなおたまじゃくしが、黒い点のように群れていた。わたしが手ですくおうとすると、祖父は「そっとしておけ。夏になったら、田んぼで鳴いてくれる」と言った。",
+"祖父の手は、ひびだらけで、土の色がしみこんでいた。その手で、毎年この田んぼを起こし、水を張り、苗を植えてきたのだ。父が生まれる前から、そのまた前から、この田んぼは、そうやって春をむかえてきたのだろう。",
+"昼が近づくと、母が坂の上から、わたしたちを呼ぶ声がした。祖父はくわを肩にかつぎ、わたしは祖父の手ぬぐいを持って、並んで家へ向かった。ふり返ると、起こしたばかりの黒い土が、日の光をうけて、しっとりと光っていた。",
+"山の上にはまだ白いものが残っている。それでも、谷を渡ってくる風は、もう冬の風ではなかった。田んぼに水が張られる日まで、あとひと月。村じゅうが、その日を待っていた。"]},
+{id:"r02",title:"れんげ畑の約束",season:"春",text:[
+"川向こうの畑が、一面うす紅色に染まる季節があった。れんげの花は、田植えの前に土へすき込まれ、稲の肥やしになるのだと、母から聞いた。花が肥やしになるなんて、子どものわたしには、少しかわいそうな気がした。",
+"幼なじみのみっちゃんと、わたしはその畑で花かんむりを編んだ。茎を折るたびに、青くさい汁が指につく。みっちゃんは器用で、わたしのぶんまで編んでくれた。できあがったかんむりを頭にのせると、みつばちが一匹、ぶんと耳のそばを通りすぎていった。",
+"わたしたちは、畑のまんなかに寝ころんで空を見た。れんげの花のあいだから見上げる空は、いつもより高く、青かった。雲がゆっくり形を変えていく。「あれは犬」「あれは船」と、二人で言いあっては笑った。",
+"みっちゃんの家は、村でただ一軒の雑貨屋だった。学校の帰りには、店先の木のベンチにすわって、十円のあめ玉をなめながら、いろんな話をした。みっちゃんは、いつか大きな町で花屋さんになりたいと言っていた。",
+"その春、みっちゃんのお父さんが、町の工場で働くことになった。一家そろって、村を出ていくのだという。知らせを聞いた日、わたしは晩ごはんを半分も食べられなかった。",
+"「大きくなっても、またここで会おうね」。そう言って指切りをしたのは、みっちゃんが町へ引っ越す前の日だった。れんげ畑の夕暮れは、どこまでも紅く、二人の影が長くのびていた。",
+"翌朝、トラックの荷台に荷物を積んで、みっちゃんの家族は峠の向こうへ消えていった。わたしは、しおれかけた花かんむりを、いつまでも手にもっていた。",
+"あれから何十年もたった。れんげ畑はもうない。けれど春になると、あの青くさい匂いと、小さな小指のかたさを、ふと思い出すことがある。みっちゃんは、どこかの町で花屋さんになれただろうか。約束は、まだ果たせていない。"]},
+{id:"r03",title:"蛍の夜",season:"夏",text:[
+"夕飯のあと、父が懐中電灯を持って「行くか」と言った。行き先は聞かなくてもわかっていた。沢のほとりの、蛍の出る場所だ。わたしは急いでぞうりをつっかけ、父の後を追った。",
+"昼間の暑さが、まだ道に残っていた。田んぼからは、かえるの声がわきあがるように聞こえてくる。どこかの家の縁側で、蚊取り線香がくゆっている匂いがした。",
+"村の灯りが遠ざかると、闇は思っていたよりも深かった。足もとの道が、どこまでつづいているのかもわからない。父の懐中電灯の丸い光だけが、草の葉をつぎつぎと照らしていく。",
+"沢の音が近くなったところで、父が明かりを消した。とたんに、あたりはまっ暗になった。わたしは思わず父の背中にしがみついた。「だいじょうぶだ。目が慣れるまで、待ってろ」。",
+"しばらくじっとしていると、草のあいだから、ひとつ、またひとつと、緑がかった光がふわりと浮かび上がった。光は息をするように、ゆっくりと明るくなっては消えていく。やがて、数えきれないほどの光が、沢の上をただよいはじめた。",
+"沢の水音のほかには、何も聞こえない。わたしは声を出すのがもったいなくて、父の袖をそっと握った。一匹の蛍が、わたしの手の甲にとまった。光るたびに、指のあいだが緑色に透けて見えた。ほんのりと冷たい光だった。",
+"帰り道、父はほとんど何も話さなかった。ただ一度だけ、「おまえのじいさんとも、ここへ来たんだ」とつぶやいた。闇のなかで、父の声は少しだけ若く聞こえた。",
+"今、あの沢に蛍がどれほど残っているのか、わたしは知らない。けれど、夏の夜に目を閉じると、あの光の明滅と、父の袖のざらりとした手ざわりが、今でもはっきりとよみがえってくる。"]},
+{id:"r04",title:"夏祭りの太鼓",season:"夏",text:[
+"盆が近づくと、夕方になるたびに、公民館のほうから太鼓の音が聞こえてくる。祭りに向けて、若い衆が稽古をしているのだ。",
+"どん、どん、と腹の底にひびく音。子どものころ、わたしはその音が少しこわかった。けれど、こわいのに、なぜか足が音のほうへ向いてしまう。公民館の窓からのぞくと、はちまきをしめた若者たちが、汗だくになってばちを振っていた。",
+"そのなかに、三つ年上の兄がいた。家ではいつも寝ころんでばかりいる兄が、真剣な顔で太鼓に向かっている。わたしに気づくと、兄はちらりとこちらを見て、すぐに目をそらした。照れていたのだと思う。",
+"祭りの日の朝、母はわたしに、新しいゆかたを着せてくれた。紺地に白い朝顔の柄だった。帯をきゅっとしめられると、背すじがしゃんとのびる気がした。",
+"夜になると、神社の境内には提灯がならび、焼きとうもろこしの香ばしい匂いがただよった。わたあめ、金魚すくい、お面の屋台。おこづかいの百円玉をにぎりしめて、わたしは何を買おうか、いつまでも迷っていた。",
+"やがて、太鼓が鳴りはじめた。どん、どどん。境内のざわめきが、すうっと静まる。やぐらの上で太鼓をたたく兄の背中は、汗で光っていた。いつもはぶっきらぼうな兄が、その夜だけは別の人に見えた。",
+"太鼓の音にあわせて、村の人たちが輪になって踊りだした。おばあさんも、小さな子も、みんな同じ手ぶりで、ゆっくりとまわっていく。わたしも母に手をひかれて、輪のなかに入った。見上げると、提灯の向こうに、大きな月がのぼっていた。",
+"今では、太鼓をたたく若い衆の数もずいぶん減ったと聞く。それでも夏が来るたびに、あの音は、遠い耳の奥で鳴りつづけている。"]},
+{id:"r05",title:"稲刈りの日",season:"秋",text:[
+"黄金色にかたむいた稲穂が、風が吹くたびにさざ波のように揺れる。稲刈りの日は、家族総出の一日だった。学校も、この日ばかりは休んでいいことになっていた。",
+"朝露がかわくのを待って、大人たちは田んぼに入った。ざくっ、ざくっと、鎌が稲の根もとを切る音がひびく。刈られた稲の切り株から、青くあまい匂いが立ちのぼった。",
+"子どもたちの仕事は、刈った稲を束ねて運ぶことだ。わらで束をしばるのは、思ったよりむずかしい。何度やってもゆるんでしまうわたしの束を、祖母がだまってしめなおしてくれた。",
+"腕がちくちくとかゆくなり、首すじに汗が流れた。田んぼのすみでは、いなごがぴょんぴょんと跳ねている。弟はいつのまにか仕事をほうりだして、いなごを追いかけていた。",
+"昼になると、あぜに腰をおろして、母のにぎったおむすびを食べた。塩だけの、いちばんおいしいおむすびだった。水筒の麦茶は、すっかりぬるくなっていたけれど、のどにしみるようにうまかった。",
+"午後は、刈った稲を、木の棒を組んだはざに掛けて干す。父が高いところに掛け、わたしたちが下から稲の束を手わたす。一段、また一段と、稲の壁ができあがっていくのを見るのが、わたしは好きだった。",
+"夕方、ずらりと並んだはざ掛けの影が、田んぼに長くのびていく。空は赤くそまり、山のふちが黒く浮かびあがった。どこかで、からすが鳴きながらねぐらへ帰っていく。",
+"最後の束を掛けおえると、「今年もよくできた」と祖母が言い、手を合わせた。何に手を合わせたのか、そのときは聞かなかった。今なら、少しわかる気がする。"]},
+{id:"r06",title:"峠のお地蔵さま",season:"秋",text:[
+"村から隣の町へ抜ける峠道の途中に、小さなお地蔵さまが立っている。赤い前かけは、だれが取りかえているのか、いつ見ても新しかった。足もとには、野の花や、ひとつかみの米が、いつもそっと供えられていた。",
+"昔、この峠を越えて、たくさんの人が行き来したという。塩を運ぶ人、嫁いでいく娘、町へ働きに出る若者。お地蔵さまは、そのひとりひとりを見送ってきたのだろう。",
+"子どものころ、わたしは祖母に連れられて、よくこの峠を歩いた。祖母は、お地蔵さまの前を通るたびに、かならず立ちどまって手を合わせた。「旅の人を守ってくださるんだよ」と、祖母は言った。",
+"一度、祖母にたずねたことがある。「おばあちゃんは、何をお願いしてるの」。祖母は少し考えてから、「みんなが、無事に帰ってこられますように」と答えた。そのころのわたしには、その意味がよくわからなかった。",
+"わたしが村を出る朝も、母はこの峠まで送ってくれた。お地蔵さまの前で立ちどまり、二人でだまって手を合わせた。紅葉した木々のあいだを、冷たい風が通り抜けていった。",
+"「つらくなったら、いつでも帰っておいで」。母はそれだけ言うと、くるりと背を向けて、坂を下りていった。母の背中が、思っていたよりも小さく見えた。",
+"町での暮らしは、楽なことばかりではなかった。それでも、くじけそうになるたびに、わたしは峠のお地蔵さまを思い出した。祖母の願いが、わたしの背中を、そっと支えてくれている気がした。",
+"帰省するたびに、わたしは峠で車をとめる。お地蔵さまは、あの朝と同じ顔で、少しだけ笑っている。わたしも手を合わせる。みんなが、無事に帰ってこられますように。"]},
+{id:"r07",title:"柿の木のある家",season:"秋",text:[
+"生まれた家の庭には、大きな柿の木があった。秋になると、枝がしなるほど実をつけ、朝日を受けてだいだい色に光った。",
+"その木は、祖父が若いころに植えたものだと聞いた。父が生まれた年に、記念に植えたのだという。だから、父とその柿の木は、同い年だった。父はときどき、木の幹をぽんとたたいて、「おまえも年をとったな」と話しかけていた。",
+"柿の実が色づくと、父は長い竹の棒の先をふたつに割って、実のついた枝をはさんでねじり取った。わたしは下で、ざるを持って待っている。落ちてきた柿を受けとめそこねて、頭にぶつけたこともあった。",
+"祖母は、渋柿の皮をむいて縄につるし、軒下にずらりと並べた。干し柿の簾だ。皮をむく祖母の手もとからは、くるくると長い皮がつながったまま落ちていく。わたしはそれを、途中で切らずにむけるのが、ふしぎでならなかった。",
+"冷たい風にさらされて、柿は日ごとに色を深め、甘くなっていく。祖母は毎日、干し柿をひとつひとつ指でもんでいた。「こうすると、やわらかくなるんだよ」。冬のはじめ、白い粉をふいた干し柿は、こたつで食べるいちばんのおやつだった。",
+"「てっぺんの一つは、鳥のために残しておくんだよ」。祖母はいつもそう言って、木の上の実を取らなかった。冬の空に、ぽつんと残った柿の実が、灯りのように見えた。ある朝、ひよどりがその実をついばんでいるのを見つけて、わたしはなんだかうれしくなった。",
+"祖父も祖母も、そして父も、もういない。家は人手に渡ってしまった。最後に家を出る日、わたしは柿の木の幹に手をあてて、父がしていたように、ぽんとたたいた。",
+"あの柿の木は、今も庭に立っていると聞く。てっぺんの一つは、今年もだれかが残しているだろうか。"]},
+{id:"r08",title:"初雪の朝",season:"冬",text:[
+"目をさますと、部屋のなかが妙に明るかった。障子を開けると、庭も、畑も、遠くの山も、一夜のうちにまっ白になっていた。",
+"前の晩、祖母が「今夜は冷えるね。雪になるかもしれん」と言っていたのを思い出した。そのとおりになったのだ。祖母の天気の読みは、ラジオの天気予報よりもよく当たった。",
+"音がない。雪は、世界じゅうの音を吸いこんでしまうようだった。いつもなら聞こえる、にわとりの声も、遠くの車の音もしない。吐く息が白く、縁側の板は足の裏がしびれるほど冷たい。",
+"となりの布団で寝ていた弟をゆり起こすと、弟は目をこすりながら外を見て、「わあっ」と声をあげた。二人で大急ぎで着がえ、長靴をはき、まだだれも歩いていない庭へ飛び出した。",
+"一歩ふみこむごとに、きゅっ、きゅっと雪が鳴る。わたしたちは、わざと大きな足あとをつけたり、雪の上にあおむけに寝ころんで、手足をばたばたさせたりした。起きあがると、雪の上に、羽をひろげた天使のような形が残っていた。",
+"弟が丸めた雪玉が、わたしの背中に当たった。冷たさに飛びあがって、わたしもやり返す。二人の笑い声だけが、静かな朝のなかに、ぽんぽんとはずむようにひびいた。",
+"ふり返ると、二人ぶんの足あとが、点々と家までつづいていた。軒先のつららが、朝日をうけて、きらきらと光っている。指先はもう、感覚がないほど冷たくなっていた。",
+"台所から、母がみそ汁をつくる音が聞こえてきた。まな板をたたく、とんとんという音。湯気の匂いにさそわれて、わたしたちは赤い頬のまま家へかけもどった。こたつに足をつっこむと、じんじんと指先に血がもどってくるのがわかった。"]},
+{id:"r09",title:"囲炉裏ばたの昔話",season:"冬",text:[
+"冬の夜は長い。外では、風が雪をまきあげて、雨戸をがたがたと鳴らしている。夕飯がすむと、家族はみんな囲炉裏のまわりに集まった。",
+"薪がぱちぱちとはぜ、天井の梁が赤く照らされる。自在かぎにつるした鉄びんが、しゅんしゅんと湯気を立てていた。母は繕いものをし、父はわらで縄をなっていた。",
+"祖父は火箸で灰をならしながら、ゆっくりと昔話を始めた。「昔な、この裏の山に、それはそれは大きな狐がすんでおった」。祖父の声は低く、しわがれていて、まるで山の奥から聞こえてくるようだった。",
+"山にすむ大きな狐の話、雪の夜にたずねてくる旅の女の話、川の淵にしずんだ鐘の話。同じ話を何度聞いても、わたしは毎回、息をのんで聞き入った。こわい場面になると、弟はわたしのひざに顔をうずめた。",
+"話の途中で、祖父はかならず火に薪を足した。その間が、子どもにはたまらなくもどかしかった。「それで、どうなったの」とせかすと、祖父はにやりと笑って、わざとゆっくり火箸を動かした。今思えば、祖父はそれも楽しんでいたのかもしれない。",
+"囲炉裏の灰のなかには、母が埋めておいたさつまいもが焼けていた。話が終わるころ、祖父が火箸でそれを掘りだしてくれる。ほくほくと湯気の立つ黄色いいもを、ふうふうと吹きながら、みんなで分けあって食べた。",
+"いつのまにか、弟は祖母のひざで眠っていた。わたしもまぶたが重くなり、炎のゆらめきが、ぼんやりとにじんで見えた。遠くで、祖父の声がまだつづいている。それが話のつづきなのか、夢のなかの声なのか、わからなくなっていった。",
+"囲炉裏のある家は、もうほとんど残っていない。それでも、炎のゆらめきと、祖父のしわがれた声は、冬が来るたびにわたしのなかでよみがえる。"]},
+{id:"r10",title:"小さな駅で",season:"春",text:[
+"村のはずれに、無人の小さな駅がある。一日に数本の列車がとまるだけの、木のベンチがひとつ置かれた駅だ。ホームのわきには、だれが植えたのか、一本の桜の木が立っている。",
+"子どものころ、わたしはこの駅で列車を見るのが好きだった。遠くから汽笛が聞こえると、ホームのはしまで走っていって、列車がやってくるのを待った。窓の向こうの知らない人たちが、どこへ行くのだろうと、いつも想像していた。",
+"高校を卒業した春、わたしはこの駅から都会へ向かった。見送りに来たのは、両親と、近所のおばさんが二人。父は、いつもの作業着ではなく、よそいきの背広を着ていた。それがかえって、ぎこちなく見えた。",
+"母は、新聞紙につつんだおむすびを、わたしの手におしつけた。「列車のなかで食べなさい」。おむすびは、まだあたたかかった。",
+"列車が来た。わたしは大きなかばんを持って乗りこみ、窓ぎわの席にすわった。列車が動きだすと、母は手をふりながら、何か言っていた。窓ごしでは、何も聞こえなかった。父は、手をあげたまま、じっと立っていた。",
+"二人の姿が見えなくなってから、わたしはおむすびの包みを開いた。中には、梅ぼしの入ったおむすびが三つと、小さく折りたたんだ紙が入っていた。紙には、母のくせのある字で、ただ「元気で」とだけ書いてあった。",
+"あのとき母が窓の外で何と言ったのか、わたしはとうとう聞かずじまいだった。たぶん、「体に気をつけて」とか、そんなことだったのだろう。聞こうと思えば、いつでも聞けたはずなのに。",
+"今年の春、わたしは久しぶりにこの駅におり立った。ホームのわきで、桜がちょうど満開だった。木のベンチに腰をおろすと、花びらが一枚、ひざの上に落ちてきた。そのとき、あの日の母の声が、ようやく聞こえたような気がした。"]}
+];
+
+const $=id=>document.getElementById(id);
+const audio=$("audio");
+const state={cur:null,view:null,urls:{},src:{},rate:1,cont:true,fs:19};
+const RATES=[0.8,1,1.25];
+try{const s=JSON.parse(localStorage.getItem("roudoku-prefs")||"{}");Object.assign(state,{rate:s.rate||1,cont:s.cont!==false,fs:s.fs||19});}catch(e){}
+function savePrefs(){try{localStorage.setItem("roudoku-prefs",JSON.stringify({rate:state.rate,cont:state.cont,fs:state.fs}))}catch(e){}}
+
+/* --- この端末への保存（IndexedDB） --- */
+let dbp=null;
+function idb(){if(dbp)return dbp;dbp=new Promise((res,rej)=>{try{const r=indexedDB.open("roudoku",1);r.onupgradeneeded=()=>r.result.createObjectStore("audio");r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e)}});return dbp;}
+async function idbOp(mode,fn){const d=await idb();return new Promise((res,rej)=>{const tx=d.transaction("audio",mode);const st=tx.objectStore("audio");const rq=fn(st);tx.oncomplete=()=>res(rq&&rq.result);tx.onerror=()=>rej(tx.error);});}
+const idbGet=k=>idbOp("readonly",s=>s.get(k));
+const idbPut=(k,v)=>idbOp("readwrite",s=>s.put(v,k));
+const idbDel=k=>idbOp("readwrite",s=>s.delete(k));
+
+/* 音声の有無を調べる：ページに公開された audio/rNN.mp3 を優先、なければ端末内 */
+/* ページに組みこんだ音声とその長さ（秒） */
+const PAGE_AUDIO={r01:135,r02:138,r03:124,r04:127,r05:115,r06:122,r07:128,r08:122,r09:129,r10:127};
+const ORIG={r00:"0_hajimeni",r01:"1.haruno_tanbomiti",r02:"2_rengehatakeno_yakusoku",r03:"3_hotaruno_yoru",r04:"4_natumaturino_taiko",r05:"5_inekarinohi",r06:"6_tougeno_ojizousama",r07:"7_kakinokino_aruie",r08:"8_hatuyukino_asa",r09:"9_iroribatano_mukasibanasi",r10:"10_tisana_ekide"};
+async function probe(w){
+  /* GitHubに置いたMP3を、いくつかの名前・場所の候補から探す */
+  const names=[w.id+".mp3",ORIG[w.id]+".mp3",ORIG[w.id].replace(/^(\d+)\./,"$1_")+".mp3",ORIG[w.id].replace(/^(\d+)_/,"$1.")+".mp3"];
+  const cands=[];names.forEach(f=>{cands.push(f,"audio/"+f)});
+  for(const u of [...new Set(cands)]){
+    try{const r=await fetch(encodeURI(u),{method:"HEAD",cache:"no-store"});if(r.ok){state.urls[w.id]=encodeURI(u);state.src[w.id]="page";return;}}catch(e){}
+  }
+  try{const b=await idbGet(w.id);if(b){state.urls[w.id]=URL.createObjectURL(b);state.src[w.id]="device";}}catch(e){}
+}
+
+function minutes(w){const n=w.text.join("").length;return Math.max(1,Math.round(n/250));}
+function fmt(t){if(!isFinite(t))return"0:00";t=Math.floor(t);return Math.floor(t/60)+":"+String(t%60).padStart(2,"0");}
+function toast(msg){const t=$("toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2600);}
+const KAN=["一","二","三","四","五","六","七","八","九","十","十一","十二","十三","十四","十五"];
+
+function renderList(){
+  const ul=$("list");ul.textContent="";
+  WORKS.forEach((w,i)=>{
+    const li=document.createElement("li");
+    const b=document.createElement("button");b.type="button";b.className="item"+(state.cur===w.id&&!audio.paused?" playing":"");
+    b.innerHTML='<span class="no"></span><span style="min-width:0"><span class="t"></span><span class="meta"><span class="s"></span><span class="m"></span></span></span><span class="chip"></span>';
+    b.querySelector(".no").textContent=w.intro?"序":KAN[WORKS[0].intro?i-1:i];
+    b.querySelector(".t").textContent=w.title;
+    b.querySelector(".s").textContent=w.season;
+    b.querySelector(".m").textContent=PAGE_AUDIO[w.id]?fmt(PAGE_AUDIO[w.id]):"約"+minutes(w)+"分";
+    const c=b.querySelector(".chip");const has=!!state.urls[w.id];c.textContent=has?"音声あり":"音声なし";if(has)c.classList.add("on");
+    b.onclick=()=>{location.hash=w.id};
+    li.appendChild(b);ul.appendChild(li);
+  });
+  const n=WORKS.filter(w=>state.urls[w.id]).length;
+  $("stats").textContent="音声が入っている朗読　"+n+" / "+WORKS.length+" 本";
+}
+
+function renderDetail(){
+  const w=WORKS.find(x=>x.id===state.view);if(!w)return;
+  $("d-season").textContent=w.intro?"上下にスライドすると朗読の文字が出ます。":w.season+"の朗読";
+  $("d-title").textContent=w.title;
+  $("d-len").textContent="本文 約"+w.text.join("").length+"字・朗読 "+(PAGE_AUDIO[w.id]?fmt(PAGE_AUDIO[w.id]):"約"+minutes(w)+"分");
+  const body=$("d-body");body.textContent="";w.text.forEach(p=>{const e=document.createElement("p");e.textContent=p;body.appendChild(e)});
+  const has=!!state.urls[w.id];
+  const playing=state.cur===w.id&&!audio.paused;
+  $("d-play").textContent=has?(playing?"一時停止":"この朗読を聞く"):"音声はまだありません";
+  $("d-play").disabled=!has;
+  $("d-pick-wrap").hidden=state.src[w.id]==="page";
+  $("d-pick-label").textContent=has?"MP3を入れかえる":"MP3を入れる";
+  $("d-del").hidden=state.src[w.id]!=="device";
+  $("d-confirm").hidden=true;
+  $("d-note").textContent=state.src[w.id]==="page"?"この音声はページに組みこまれています。だれが開いても聞けます。"
+    :has?"この音声はこの端末だけに保存されています。"
+    :"スマートフォンに入っているMP3を選ぶと、この端末で聞けるようになります。";
+  document.documentElement.style.setProperty("--fs",state.fs+"px");
+  {const i=WORKS.findIndex(x=>x.id===state.view),nx=WORKS[i+1];$("next2").hidden=!nx;if(nx)$("next2").textContent=(nx.intro?"":"次へ　")+nx.title+" ›";}
+}
+
+function route(){
+  const id=location.hash.slice(1);const w=WORKS.find(x=>x.id===id);
+  if(w){state.view=id;$("home").hidden=true;$("detail").hidden=false;renderDetail();window.scrollTo(0,0);buildDetailCover();sizeDetailCover();}
+  else{state.view=null;$("home").hidden=false;$("detail").hidden=true;renderList();}
+}
+
+/* --- 再生 --- */
+function load(id,autoplay){
+  const w=WORKS.find(x=>x.id===id);if(!w||!state.urls[id])return false;
+  stopTts();
+  if(state.cur!==id){state.cur=id;audio.src=state.urls[id];}
+  audio.playbackRate=state.rate;
+  $("p-title").textContent=w.title;
+  if(autoplay)audio.play().catch(()=>toast("再生できませんでした。もう一度押してください"));
+  return true;
+}
+function step(dir){
+  if(!state.cur){const f=WORKS.find(w=>state.urls[w.id]);if(f)load(f.id,true);else toast("音声が入っている朗読がありません");return;}
+  let i=WORKS.findIndex(w=>w.id===state.cur);
+  for(let k=0;k<WORKS.length;k++){i+=dir;if(i<0||i>=WORKS.length)break;if(state.urls[WORKS[i].id]){load(WORKS[i].id,true);if(state.view)location.hash=WORKS[i].id;return;}}
+  toast(dir>0?"これが最後の朗読です":"これが最初の朗読です");
+}
+const PLAY='<path d="M8 5v14l11-7z"/>',PAUSE='<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+function sync(){
+  $("pp-ic").innerHTML=audio.paused?PLAY:PAUSE;$("pp").setAttribute("aria-label",audio.paused?"再生":"一時停止");
+  if(state.view)renderDetail();else renderList();
+}
+audio.addEventListener("play",sync);audio.addEventListener("pause",sync);
+audio.addEventListener("timeupdate",()=>{const d=audio.duration||0;if(!seeking)$("seek").value=d?audio.currentTime/d*100:0;$("time").textContent=fmt(audio.currentTime)+" / "+fmt(d);});
+audio.addEventListener("loadedmetadata",()=>{$("time").textContent="0:00 / "+fmt(audio.duration)});
+audio.addEventListener("ended",()=>{
+  if(SLEEP[sleepIdx]===-1){resetSleep();toast("おやすみなさい");sync();return;}
+  if(state.cont)step(1);else sync();});
+
+/* --- おやすみタイマー --- */
+const SLEEP=[0,15,20,30,-1];   // 分。-1は「この朗読が終わったら」
+let sleepIdx=0,deadline=null,fading=null;
+function resetSleep(){sleepIdx=0;deadline=null;showSleep();}
+function showSleep(){
+  const b=$("sleep"),m=SLEEP[sleepIdx];
+  b.setAttribute("aria-pressed",m!==0);
+  if(m===0)b.textContent="☾ タイマー";
+  else if(m===-1)b.textContent="☾ この篇まで";
+  else{const r=Math.max(0,deadline-Date.now())/1000;b.textContent="☾ 残り"+fmt(r);}
+}
+function checkSleep(){
+  if(!deadline||fading)return;
+  if(Date.now()>=deadline){
+    if(audio.paused){resetSleep();return;}
+    let v=1;fading=setInterval(()=>{           // 約10秒かけて小さくしてから止める
+      v-=0.05;try{audio.volume=Math.max(0,v)}catch(e){}
+      if(v<=0){clearInterval(fading);fading=null;audio.pause();try{audio.volume=1}catch(e){}resetSleep();toast("おやすみなさい");}
+    },500);
+  }
+}
+$("sleep").onclick=()=>{
+  if(fading){clearInterval(fading);fading=null;try{audio.volume=1}catch(e){}}
+  sleepIdx=(sleepIdx+1)%SLEEP.length;const m=SLEEP[sleepIdx];
+  deadline=m>0?Date.now()+m*60000:null;showSleep();
+  toast(m===0?"タイマーを切りました":m===-1?"いまの朗読が終わったら止めます":m+"分後にゆっくり止めます");
+};
+audio.addEventListener("timeupdate",checkSleep);
+setInterval(()=>{if(deadline)showSleep();checkSleep();},1000);
+let seeking=false;
+$("seek").addEventListener("input",()=>{seeking=true;const d=audio.duration||0;$("time").textContent=fmt($("seek").value/100*d)+" / "+fmt(d);});
+$("seek").addEventListener("change",()=>{const d=audio.duration||0;if(d)audio.currentTime=$("seek").value/100*d;seeking=false;});
+$("pp").onclick=()=>{if(!state.cur){step(1);return;}audio.paused?audio.play().catch(()=>{}):audio.pause();};
+$("rew").onclick=()=>{audio.currentTime=Math.max(0,audio.currentTime-15)};
+$("fwd").onclick=()=>{if(audio.duration)audio.currentTime=Math.min(audio.duration-0.5,audio.currentTime+15)};
+$("prev").onclick=()=>step(-1);$("next").onclick=()=>step(1);
+function showRate(){$("rate").textContent=state.rate.toFixed(state.rate===1.25?2:1)+"倍";$("cont").textContent="連続";$("cont").setAttribute("aria-pressed",state.cont);}
+$("rate").onclick=()=>{state.rate=RATES[(RATES.indexOf(state.rate)+1)%RATES.length];audio.playbackRate=state.rate;showRate();savePrefs();};
+$("cont").onclick=()=>{state.cont=!state.cont;showRate();savePrefs();toast(state.cont?"終わったら次の朗読へ進みます":"一篇ずつ止まります");};
+
+/* --- 詳細画面の操作 --- */
+$("back").onclick=()=>{location.hash="";};
+$("back2").onclick=()=>{location.hash="";};
+$("next2").onclick=()=>{const i=WORKS.findIndex(x=>x.id===state.view);if(WORKS[i+1])location.hash=WORKS[i+1].id;};
+$("d-play").onclick=()=>{const id=state.view;if(state.cur===id&&!audio.paused){audio.pause();return;}load(id,true);};
+$("d-pick").addEventListener("change",async e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;const id=state.view;
+  if(!/audio|mpeg/.test(f.type)&&!/\.mp3$/i.test(f.name)){toast("音声ファイル（MP3）を選んでください");return;}
+  try{await idbPut(id,f);}catch(err){toast("この端末には保存できませんでした。このまま一時的に再生できます");}
+  if(state.urls[id]&&state.src[id]==="device")URL.revokeObjectURL(state.urls[id]);
+  state.urls[id]=URL.createObjectURL(f);state.src[id]="device";
+  if(state.cur===id){state.cur=null;}
+  renderDetail();toast("「"+WORKS.find(w=>w.id===id).title+"」に音声を入れました");
+});
+$("d-del").onclick=()=>{$("d-confirm").hidden=false;};
+$("d-del-no").onclick=()=>{$("d-confirm").hidden=true;};
+$("d-del-yes").onclick=async()=>{
+  const id=state.view;try{await idbDel(id)}catch(e){}
+  if(state.cur===id){audio.pause();audio.removeAttribute("src");state.cur=null;$("p-title").textContent="再生する朗読を選んでください";}
+  URL.revokeObjectURL(state.urls[id]);delete state.urls[id];delete state.src[id];renderDetail();toast("音声を外しました");
+};
+$("fs-up").onclick=()=>{state.fs=Math.min(26,state.fs+2);renderDetail();savePrefs();};
+$("fs-down").onclick=()=>{state.fs=Math.max(15,state.fs-2);renderDetail();savePrefs();};
+
+/* --- 合成音声の試し読み（使える環境でのみ表示） --- */
+let tts=null,ttsOn=false;
+function stopTts(){if(tts&&ttsOn){try{tts.stop()}catch(e){}}}
+(async()=>{try{tts=window.claude?.use?await window.claude.use("tts"):null;}catch(e){tts=null}
+  if(!tts)return;$("d-tts").hidden=false;
+  tts.onState(({state:s})=>{ttsOn=s==="speaking"||s==="paused";$("d-tts").textContent=ttsOn?"試し読みを止める":"試し読み（合成音声）";});
+})();
+$("d-tts").onclick=()=>{
+  if(!tts)return;if(ttsOn){tts.stop();return;}
+  audio.pause();const w=WORKS.find(x=>x.id===state.view);
+  tts.speak([{text:w.title,language:"ja",rate:0.9},...w.text.map(p=>({text:p,language:"ja",rate:0.9}))]).catch(e=>{if(e&&e.code==="not_granted"){$("d-tts").hidden=true;}});
+};
+
+
+/* --- 本文ページの絵 --- */
+let dcFull=0;
+function buildDetailCover(){
+  const box=$("d-cover");if(box.firstChild)return;
+  const src=document.querySelector(".cover svg");if(!src)return;
+  let html=src.outerHTML.replace(/id="([^"]+)"/g,'id="d-$1"').replace(/url\(#([^)]+)\)/g,"url(#d-$1)");
+  box.innerHTML=html;
+  const svg=box.querySelector("svg");svg.setAttribute("preserveAspectRatio","xMidYMid slice");svg.removeAttribute("aria-label");svg.setAttribute("aria-hidden","true");
+}
+function sizeDetailCover(){
+  if($("detail").hidden)return;
+  const box=$("d-cover"),w=box.parentElement.clientWidth;
+  dcFull=Math.min(w*480/400,window.innerHeight*0.78);
+  const min=Math.min(dcFull,w*0.61);   // スライドしたときに残す絵の高さ（横幅の約6割）
+  const start=$("back").offsetTop+$("back").offsetHeight;   // 絵の本来の位置（貼りついても変わらない基準）
+  const h=Math.max(min,dcFull-Math.max(0,window.scrollY-start));
+  box.style.height=h+"px";box.style.marginBottom=(dcFull-h)+"px";
+}
+window.addEventListener("scroll",()=>requestAnimationFrame(sizeDetailCover),{passive:true});
+window.addEventListener("resize",sizeDetailCover);
+window.addEventListener("hashchange",route);
+showRate();route();
+Promise.all(WORKS.map(probe)).then(route);
+</script>
+
+</body>
+</html>
